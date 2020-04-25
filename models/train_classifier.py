@@ -14,7 +14,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
 # Model Selections
-from sklearn.metrics import confusion_matrix
+#from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -22,54 +22,107 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.multioutput import MultiOutputClassifier
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import classification_report, f1_score, precision_score, recall_score
 
 import numpy as np
 import time
 import pickle
 
+url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
 
 def load_data(database_filepath):
+    """Load  a database table and return values, labels and category names
+        Parameters
+        ----------
+        database_filepath : string
+            location of the database
+        Returns
+        -------
+        X: numpy.ndarray
+            The training data
+        y: numpy.ndarray
+            The training labels
+        categories: list
+         The labely names category names
+        """
     # load data from database
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql_table('clean_messages', con=engine)
-    X = df["message"]
-    categories = df.columns[4:]
-    y = df[categories]
+    X = df["message"].values
+    categories = df.columns[4:].tolist()
+    y = df[categories].values
     return X, y, categories
+
+#defining a customized feature class
+
+class Text_Length_Extractor(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X_tagged = pd.Series(X).apply(lambda x: len(x)).values
+        return pd.DataFrame(X_tagged)
 
 
 def tokenize(text):
-    url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    """Tokenize text
+        Parameters
+        ----------
+        text : string
+            the text to tokenize
+        Returns
+        -------
+        clean_tokens : list
+            the tokens list
+        """
     detected_urls = re.findall(url_regex, text)
     for url in detected_urls:
         text = text.replace(url, "urlplaceholder")
 
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
+    tokens = word_tokenize(text)  # tokenize
+
+    lemmatizer = WordNetLemmatizer() # initiate Lemmatizer
+
+    #Lemmatize and normalize and strip
     clean_tokens = []
     stop_words = stopwords.words('english')
     for tok in tokens:
-        if (tok.isalpha() and tok not in stop_words):  # filtering our punctuation and stop words
-            clean_tok = lemmatizer.lemmatize(tok).lower().strip()
+        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
+        if (clean_tok.isalpha() and clean_tok not in stop_words):  # filtering out punctuation and stop words
             clean_tokens.append(clean_tok)
     return clean_tokens
 
 
-# Building a machine learning pipeline
-# This machine pipeline should take in the message column as input and output classification \
-# results on the other 36 categories in the dataset
-def build_model():
-    pipeline = Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize)),
-        ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))
-        ])
 
+def build_model():
+    """Build and optimize model
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        model
+        """
+    # building a pipeline
+    pipeline = Pipeline([
+        ('features', FeatureUnion([
+
+            ('text_pipeline', Pipeline([
+                ('vect', CountVectorizer(tokenizer=tokenize)),
+                ('tfidf', TfidfTransformer())
+            ])),
+
+            ('text_len', Text_Length_Extractor())
+        ])),
+
+        ('clf', MultiOutputClassifier(RandomForestClassifier()))
+    ])
+
+    # set parameters for grid search
     parameters = {
-        'clf__estimator__n_estimators': [10,50],
-        'clf__estimator__min_samples_split': [2, 3, 4]
-        # 'vect__ngram_range': [(1, 1)]
+        'features__text_pipeline__vect__ngram_range': ((1, 1), (1, 2)),
+        'clf__estimator__n_estimators': [10]
         }
 
     model = GridSearchCV(pipeline, param_grid=parameters)
@@ -77,23 +130,46 @@ def build_model():
 
 
 def evaluate_model(model, X_test, y_test, category_names):
-    report = []
-    f1_scores = []
-    for i, col in enumerate(category_names):
-        y_pred = model.predict(X_test)
-        y_true = y_test[col]
-        f = classification_report(y_true, y_pred[:, i])
-        score = f1_score(y_true, y_pred[:, i], average='weighted')
-        report.append(f)
-        f1_scores.append(score)
+    """Evaluates and prints model performance
+        Parameters
+        ----------
+        model : multiclassification model
+        X_test: numpy.ndarray
+            The test data
+        y_test: numpy.ndarray
+            The test labels
+        category_names: list
+         The category names
+        Returns
+        -------
+        Average weighted f1-score
+        """
+    y_pred = model.predict(X_test)
+    final_scores = []
+    for i in range(y_test.shape[1]):
+        # print(classification_report(y_test[:, i], y_pred[:, i]))
+        f1 = f1_score(y_test[:, i], y_pred[:, i], average='weighted')
+        precision = precision_score(y_test[:, i], y_pred[:, i], average='weighted')
+        recall = recall_score(y_test[:, i], y_pred[:, i], average='weighted')
+        scores = [f1, precision, recall]
+        final_scores.append(scores)
 
-    avg_f1 = np.mean(f1_scores)
-    return print("Avg weighted f1-score:{}".format(avg_f1))
+    avg_final_scores = np.around(np.mean(final_scores, axis=0), 3)
+    print("Avg weighted f1-score,Precision and Recall Scores are:{}".format(avg_final_scores))
 
 
 def save_model(model, model_filepath):
-    # Save to file in the current working directory
-    # pkl_filename = "classifier.pkl"
+    """Save model as a pickle file
+       Parameters
+       ----------
+       model : multiclassification model
+           The optimized classifier
+       model_filepath : string
+           location of the database
+       Returns
+       -------
+       None
+       """
     with open(model_filepath, 'wb') as file:
         pickle.dump(model, file)
 
@@ -126,9 +202,9 @@ def main():
         print('Trained model saved!')
 
     else:
-        print('Please provide the filepath of the disaster messages database ' \
-              'as the first argument and the filepath of the pickle file to ' \
-              'save the model to as the second argument. \n\nExample: python ' \
+        print('Please provide the filepath of the disaster messages database '
+              'as the first argument and the filepath of the pickle file to '
+              'save the model to as the second argument. \n\nExample: python '
               'train_classifier.py ../data/DisasterResponse.db classifier.pkl')
 
 

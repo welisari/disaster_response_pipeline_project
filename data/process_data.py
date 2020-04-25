@@ -5,20 +5,35 @@ from sqlalchemy import create_engine
 
 
 def load_data(messages_filepath, categories_filepath):
-    # load messages dataset
+    ''' Load  two csv files into pandas dataframes and  merge them into one.
+        Parameters
+        ----------
+        messages_filepath : string
+            location of the messages csv file
+        categories_filepath : string
+            location of the categories csv file
+        Returns
+        -------
+        pandas.DataFrame
+            The merged dataframe
+        '''
     messages = pd.read_csv(messages_filepath)
-    # load categories dataset
     categories = pd.read_csv(categories_filepath)
-    # Merging the messages and categories datasets using the common id
     df = messages.merge(categories, on='id')
     return df
 
-
 def clean_data(df):
-    """Splitting the values in the `categories` column on the `;` character so that each value becomes a
-    separate column.
-    - Use the first row of categories dataframe to create column names for the categories data.
-    - Rename columns of `categories` with new column names."""
+    """
+        Process a dataframe
+        Parameters
+        ----------
+        df: pandas.DataFrame
+            The pandas.Dataframe to be processed
+        Returns
+        -------
+        pandas.DataFrame
+            The processed dataframe
+        """
     # create a dataframe of the 36 individual category columns
     categories = df["categories"].str.split(";", expand=True)
     # select the first row of the categories dataframe
@@ -28,7 +43,7 @@ def clean_data(df):
     category_colnames = [item.split("-")[0] for item in row]
     # rename the columns of `categories`
     categories.columns = category_colnames
-    """Convert category values to just numbers 0 or 1"""
+    # Convert category values to just numbers 0 or 1
     # Iterate through the category columns in df to keep only the last character of each string (the 1 or 0)
     for column in categories:
         # set each value to be the last character of the string
@@ -49,6 +64,18 @@ def clean_data(df):
 
 
 def save_data(df, database_filename):
+    """
+        Writes a dataframe to a Sql-lite Database
+        Parameters
+        ----------
+        df: pandas.DataFrame
+            The pandas.Dataframe to be written
+        database_filename: string
+            The filename path for the database
+        Returns
+        -------
+        None
+        """
     # Save the clean dataset into an sqlite database
     engine = create_engine('sqlite:///{}'.format(database_filename))
     df.to_sql('clean_messages', con=engine, index=False, if_exists='replace')
