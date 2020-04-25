@@ -3,7 +3,7 @@
 ## Table of Contents
 1. [Installation](#installation)
 2. [Instructions](#instructions)
-3. [File Descriptions](#files)
+3. [File Descriptions and Usage](#files)
 4. [Code Structure](#codes)
 5. [Results](#results)
 
@@ -22,7 +22,7 @@ Python version of Anaconda Distribution will be mainly enough for the necessary 
 3. Go to http://0.0.0.0:3001/
 
 
-### File Descriptions / Usage <a name="files"></a>
+### File Descriptions and Usage <a name="files"></a>
 1. data/process_data.py: The ETL pipeline used to process and clean data in preparation for model building.
 	
 	* Combines the two given datasets (In CSV  format)
