@@ -14,7 +14,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
 # Model Selections
-#from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -29,6 +29,7 @@ import time
 import pickle
 
 url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+
 
 def load_data(database_filepath):
     """Load  a database table and return values, labels and category names
@@ -53,7 +54,8 @@ def load_data(database_filepath):
     y = df[categories].values
     return X, y, categories
 
-#defining a customized feature class
+
+# defining a customized feature class
 
 class Text_Length_Extractor(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
@@ -81,9 +83,9 @@ def tokenize(text):
 
     tokens = word_tokenize(text)  # tokenize
 
-    lemmatizer = WordNetLemmatizer() # initiate Lemmatizer
+    lemmatizer = WordNetLemmatizer()  # initiate Lemmatizer
 
-    #Lemmatize and normalize and strip
+    # Lemmatize and normalize and strip
     clean_tokens = []
     stop_words = stopwords.words('english')
     for tok in tokens:
@@ -91,7 +93,6 @@ def tokenize(text):
         if (clean_tok.isalpha() and clean_tok not in stop_words):  # filtering out punctuation and stop words
             clean_tokens.append(clean_tok)
     return clean_tokens
-
 
 
 def build_model():
@@ -122,8 +123,15 @@ def build_model():
     # set parameters for grid search
     parameters = {
         'features__text_pipeline__vect__ngram_range': ((1, 1), (1, 2)),
-        'clf__estimator__n_estimators': [10]
-        }
+        'clf__estimator__n_estimators': [50, 100, 200],
+        #'clf__estimator__max_features': ['log2', 'sqrt','auto'],
+        #'clf__estimator__criterion': ['entropy', 'gini'],
+        'features__transformer_weights': (
+            {'text_pipeline': 1, 'text_len': 0.3},
+            {'text_pipeline': 0.5, 'text_len': 1},
+            {'text_pipeline': 0.8, 'text_len': 1}
+        )
+    }
 
     model = GridSearchCV(pipeline, param_grid=parameters)
     return model
