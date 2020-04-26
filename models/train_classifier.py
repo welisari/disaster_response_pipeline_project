@@ -127,13 +127,13 @@ def build_model():
         #'clf__estimator__max_features': ['log2', 'sqrt','auto'],
         #'clf__estimator__criterion': ['entropy', 'gini'],
         'features__transformer_weights': (
-            {'text_pipeline': 1, 'text_len': 0.3},
-            {'text_pipeline': 0.5, 'text_len': 1},
-            {'text_pipeline': 0.8, 'text_len': 1}
+            {'text_pipeline': 1, 'text_len': 0.3}
+            #{'text_pipeline': 0.5, 'text_len': 1},
+            #{'text_pipeline': 0.8, 'text_len': 1}
         )
     }
 
-    model = GridSearchCV(pipeline, param_grid=parameters)
+    model = GridSearchCV(pipeline, param_grid=parameters, verbose=5)
     return model
 
 
@@ -189,23 +189,17 @@ def main():
         X, y, category_names = load_data(database_filepath)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-        start = time.process_time()
         print('Building model...')
         model = build_model()
-        print(time.process_time() - start)
 
         print('Training model...')
         model.fit(X_train, y_train)
-        print(time.process_time() - start)
 
         print('Evaluating model...')
         evaluate_model(model, X_test, y_test, category_names)
-        print(time.process_time() - start)
 
         print('Saving model...\n    MODEL: {}'.format(model_filepath))
         save_model(model, model_filepath)
-
-        print(time.process_time() - start)
 
         print('Trained model saved!')
 

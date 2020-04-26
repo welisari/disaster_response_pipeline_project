@@ -1,14 +1,18 @@
 import json
 import plotly
 import pandas as pd
+import numpy as np
+from collections import Counter
 
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
 from sklearn.externals import joblib
+from sklearn.base import BaseEstimator, TransformerMixin
 from sqlalchemy import create_engine
 
 app = Flask(__name__)
@@ -19,11 +23,22 @@ def tokenize(text):
     lemmatizer = WordNetLemmatizer()
 
     clean_tokens = []
+    stop_words = stopwords.words('english')
     for tok in tokens:
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
+        if (clean_tok.isalpha() and clean_tok not in stop_words):  # filtering out punctuation and stop words
+            clean_tokens.append(clean_tok)
 
     return clean_tokens
+
+
+class Text_Length_Extractor(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X_tagged = pd.Series(X).apply(lambda x: len(x)).values
+        return pd.DataFrame(X_tagged)
 
 
 # load data
@@ -34,34 +49,83 @@ df = pd.read_sql_table('clean_messages', engine)
 model = joblib.load("../models/classifier.pkl")
 
 
+def top_words(message):
+    """bring top 10 words in a message
+        Parameters
+        ----------
+        df : dataframe
+         Returns
+        -------
+        top 10 words and number of accurences : list
+        """
+    all_words = message.apply(tokenize).agg(np.sum)  # tokenize and aggregate all words
+    unique_words = set(all_words)
+    dicts = {w: all_words.count(w) for w in unique_words}  # create a dictionary pair, word and number of occurence
+    top10_dict = dict(Counter(dicts).most_common(10))  # top 10
+    words = list(top10_dict.keys())
+    count = list(top10_dict.values())
+
+    return words, count
+
+
+print(" Extracting the mostly used words from the messages, \n please wait... ")
+words, word_counts = top_words(df["message"])
+
+
 # index webpage displays cool visuals and receives user input text for model
 @app.route('/')
 @app.route('/index')
 def index():
     # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
+    # Top 10 categories distribution
+    category_names = df.columns[4:].tolist()
+    top_category_num = df[category_names].sum().sort_values(ascending=False)[:10]
+    top_category_names = list(top_category_num.index)
 
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
             'data': [
                 Bar(
-                    x=genre_names,
-                    y=genre_counts
+                    x=category_names,
+                    y=top_category_num.values,
+                    marker={'color': top_category_num.values}
                 )
+
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Top 10 Categories in Data Set',
                 'yaxis': {
-                    'title': "Count"
+                    'title': "Number of Occurence"
                 },
                 'xaxis': {
-                    'title': "Genre"
+                    'title': "Category Name"
                 }
+
+            }
+        },
+        {
+            'data': [
+                Bar(
+                    x=words,
+                    y=word_counts,
+                    marker={'color': word_counts}
+                )
+
+            ],
+
+            'layout': {
+                'title': '"Top 10 Frequent Used Words"',
+                'yaxis': {
+                    'title': "Number of Used"
+                },
+                'xaxis': {
+                    'title': "Word in Messages"
+                }
+
             }
         }
     ]

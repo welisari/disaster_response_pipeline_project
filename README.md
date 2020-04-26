@@ -1,5 +1,8 @@
 # Disaster Response Pipeline Project
 
+![alt-text](link)
+
+
 ## Table of Contents
 1. [Project Purpose](#purpose)
 2. [Installation and Requirements](#installation)
@@ -44,8 +47,8 @@ The main ToolKits are python, Flask, matplotlib, numpy, pandas, pickle, plotly, 
 	- Combines the two given datasets (In CSV  format)
 	- Cleans the data
 	- Stores it in a SQLite database
-	To **run ETL pipeline**:
-	-> `python data/process_data.py data/disaster_messages.csv data/disaster_categories.csv data/DisasterResponse.db`
+		* To **run ETL pipeline**:
+		- `python data/process_data.py data/disaster_messages.csv data/disaster_categories.csv data/DisasterResponse.db`
 	
 2. models/train_classifier.py: The Machine Learning pipeline used to fit, tune, evaluate, and export the model to a Python pickle.	
 	- Splits the dataset into training and test sets
@@ -53,20 +56,20 @@ The main ToolKits are python, Flask, matplotlib, numpy, pandas, pickle, plotly, 
 	- Trains and tunes a model using GridSearchCV
 	- Outputs results on the test set
 	- Exports the final model as a pickle file
-	To **run ML pipeline**:
-	-> `python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl`
+		* To **run ML pipeline**:
+		- `python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl`
 	
 3. app/templates/*.html: HTML templates required for the web app.
 
 4. app/run.py: To start the Python server for the web app and render visualizations.
 	- Flask app: When a user inputs a message into the app, the app returns classification results for all 36 categories.
-	To **run web app**:
-	-> `python run.py`
+		* To **run web app**:
+		- `python run.py`
 5. Go to http://0.0.0.0:3001/ for the visualization and input classification
 
 
 ### Results<a name="results"></a>
 The main observations of the trained classifier can be seen by running this application.
 
-###Credits <a name="credits"></a>
+### Credits <a name="credits"></a>
 Thanks to Udacity for providing the project idea and supoort on it.
