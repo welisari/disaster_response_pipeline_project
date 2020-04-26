@@ -1,6 +1,6 @@
 # Disaster Response Pipeline Project
 
-![alt-text](link)
+![](app/disaster_response_project_web.gif)
 
 
 ## Table of Contents
